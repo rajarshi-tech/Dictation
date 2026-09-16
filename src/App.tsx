@@ -24,6 +24,8 @@ function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const pauseTimer = useRef<number | undefined>(undefined)
   const statusRef = useRef<Status>('idle')
+  const chunkIndexRef = useRef(0)
+  const repeatIndexRef = useRef(0)
 
   const updateStatus = (nextStatus: Status) => {
     statusRef.current = nextStatus
@@ -37,8 +39,6 @@ function App() {
     return grouped
   }, [chunkSize, text])
 
-  const currentChunk = chunks[chunkIndex]
-  const currentRate = Math.min(2, Math.max(0.4, speed + repeatIndex * speedChange))
   const totalPlays = chunks.length * repetitions
   const completedPlays = chunkIndex * repetitions + repeatIndex
 
@@ -59,20 +59,25 @@ function App() {
   }, [])
 
   const speakCurrent = () => {
-    if (!currentChunk) return
+    const activeChunk = chunks[chunkIndexRef.current]
+    const activeRate = Math.min(2, Math.max(0.4, speed + repeatIndexRef.current * speedChange))
+    if (!activeChunk) return
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(currentChunk.sentences.join(' '))
-    utterance.rate = currentRate
+    const utterance = new SpeechSynthesisUtterance(activeChunk.sentences.join(' '))
+    utterance.rate = activeRate
     const voice = voices.find((item) => item.voiceURI === selectedVoice)
     if (voice) utterance.voice = voice
     utterance.onstart = () => updateStatus('playing')
     utterance.onend = () => {
       if (statusRef.current !== 'playing') return
-      if (repeatIndex + 1 < repetitions) {
-        setRepeatIndex((index) => index + 1)
+      if (repeatIndexRef.current + 1 < repetitions) {
+        repeatIndexRef.current += 1
+        setRepeatIndex(repeatIndexRef.current)
         pauseTimer.current = window.setTimeout(speakCurrent, pause * 1000)
-      } else if (chunkIndex + 1 < chunks.length) {
-        setChunkIndex((index) => index + 1)
+      } else if (chunkIndexRef.current + 1 < chunks.length) {
+        chunkIndexRef.current += 1
+        setChunkIndex(chunkIndexRef.current)
+        repeatIndexRef.current = 0
         setRepeatIndex(0)
         pauseTimer.current = window.setTimeout(speakCurrent, pause * 1000)
       } else updateStatus('finished')
@@ -86,38 +91,24 @@ function App() {
       updateStatus('playing')
       return
     }
-    setChunkIndex(0)
-    setRepeatIndex(0)
     updateStatus('playing')
-    window.setTimeout(() => {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(chunks[0]?.sentences.join(' ') ?? '')
-      utterance.rate = speed
-      const voice = voices.find((item) => item.voiceURI === selectedVoice)
-      if (voice) utterance.voice = voice
-      utterance.onend = () => {
-        if (repetitions > 1) {
-          setRepeatIndex(1)
-          pauseTimer.current = window.setTimeout(speakCurrent, pause * 1000)
-        } else if (chunks.length > 1) {
-          setChunkIndex(1)
-          pauseTimer.current = window.setTimeout(speakCurrent, pause * 1000)
-        } else updateStatus('finished')
-      }
-      window.speechSynthesis.speak(utterance)
-    }, 0)
+    window.setTimeout(speakCurrent, 0)
   }
 
   const pausePlayback = () => { window.speechSynthesis.pause(); updateStatus('paused') }
   const stop = () => {
     window.speechSynthesis.cancel()
     if (pauseTimer.current) window.clearTimeout(pauseTimer.current)
+    chunkIndexRef.current = 0
+    repeatIndexRef.current = 0
     setChunkIndex(0); setRepeatIndex(0); updateStatus('idle')
   }
   const skip = (direction: number) => {
     window.speechSynthesis.cancel()
     if (pauseTimer.current) window.clearTimeout(pauseTimer.current)
-    setChunkIndex(Math.min(Math.max(chunkIndex + direction, 0), chunks.length - 1)); setRepeatIndex(0); updateStatus('idle')
+    chunkIndexRef.current = Math.min(Math.max(chunkIndex + direction, 0), chunks.length - 1)
+    repeatIndexRef.current = 0
+    setChunkIndex(chunkIndexRef.current); setRepeatIndex(0); updateStatus('idle')
   }
 
   useEffect(() => {
@@ -143,7 +134,7 @@ function App() {
         <div className="transport"><button type="button" className="button button-main" onClick={status === 'playing' ? pausePlayback : start}>{status === 'playing' ? 'PAUSE' : status === 'paused' ? 'RESUME' : 'START'}</button><button type="button" className="button" onClick={stop}>STOP</button></div><div className="transport transport-secondary"><button type="button" className="button" onClick={() => skip(-1)}>PREVIOUS</button><button type="button" className="button" onClick={speakCurrent}>REPLAY</button><button type="button" className="button" onClick={() => skip(1)}>NEXT</button></div><p className="shortcut-note">SPACE PLAY / PAUSE <span>R REPLAY</span> <span>ARROWS SKIP</span></p>
       </aside>
     </section>
-    <section className="queue-section"><div className="queue-heading"><div><span className="eyebrow">03 / QUEUE</span><h2>Dictation sequence</h2></div><strong>{Math.min(completedPlays, totalPlays)} / {totalPlays || 0} PLAYS</strong></div><div className="chunk-list">{chunks.map((chunk, index) => <button type="button" className={`chunk-row ${index === chunkIndex ? 'active' : ''} ${index < chunkIndex ? 'done' : ''}`} key={chunk.id} onClick={() => { setChunkIndex(index); setRepeatIndex(0); updateStatus('idle') }}><span className="chunk-number">{String(chunk.id).padStart(2, '0')}</span><span className="chunk-copy"><strong>{chunk.sentences.join(' ')}</strong><small>{chunk.sentences.length} SENTENCE{chunk.sentences.length === 1 ? '' : 'S'} / {index === chunkIndex ? `REPEAT ${repeatIndex + 1} OF ${repetitions}` : index < chunkIndex ? 'COMPLETE' : 'QUEUED'}</small></span><span className="chunk-arrow">{index === chunkIndex ? 'NOW' : index < chunkIndex ? 'DONE' : '>'}</span></button>)}</div>{chunks.length === 0 && <div className="empty-state">Paste text above to build a dictation queue.</div>}</section>
+    <section className="queue-section"><div className="queue-heading"><div><span className="eyebrow">03 / QUEUE</span><h2>Dictation sequence</h2></div><strong>{Math.min(completedPlays, totalPlays)} / {totalPlays || 0} PLAYS</strong></div><div className="chunk-list">{chunks.map((chunk, index) => <button type="button" className={`chunk-row ${index === chunkIndex ? 'active' : ''} ${index < chunkIndex ? 'done' : ''}`} key={chunk.id} onClick={() => { chunkIndexRef.current = index; repeatIndexRef.current = 0; setChunkIndex(index); setRepeatIndex(0); updateStatus('idle') }}><span className="chunk-number">{String(chunk.id).padStart(2, '0')}</span><span className="chunk-copy"><strong>{chunk.sentences.join(' ')}</strong><small>{chunk.sentences.length} SENTENCE{chunk.sentences.length === 1 ? '' : 'S'} / {index === chunkIndex ? `REPEAT ${repeatIndex + 1} OF ${repetitions}` : index < chunkIndex ? 'COMPLETE' : 'QUEUED'}</small></span><span className="chunk-arrow">{index === chunkIndex ? 'NOW' : index < chunkIndex ? 'DONE' : '>'}</span></button>)}</div>{chunks.length === 0 && <div className="empty-state">Paste text above to build a dictation queue.</div>}</section>
     <footer className="footer"><span>NO CLOUD / NO ACCOUNT / YOUR TEXT STAYS HERE</span><span>WEB SPEECH API</span></footer>
   </main>
 }
