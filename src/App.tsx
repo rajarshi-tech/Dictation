@@ -136,7 +136,6 @@ function App() {
   })
 
   return <main className="app-shell">
-    <header className="topbar"><div><span className="brand-mark">D</span><strong>DICTATION</strong></div><span className="provider-label">LOCAL / BROWSER VOICE</span></header>
     <section className="workspace">
       <div className="source-panel panel"><div className="panel-heading"><div><span className="eyebrow">01 / SOURCE</span><h1>Text to dictate</h1></div><span className="char-count">{text.length} CHAR</span></div><textarea value={text} onChange={(event) => setText(event.target.value)} aria-label="Text to dictate" /><div className="source-footer"><span>{splitSentences(text).length} SENTENCES / {chunks.length} CHUNKS</span><button type="button" className="text-button" onClick={() => setText('')}>CLEAR TEXT</button></div></div>
       <aside className="control-panel panel"><div className="panel-heading"><div><span className="eyebrow">02 / SETUP</span><h2>Playback</h2></div><span className={`status status-${status}`}>{status.toUpperCase()}</span></div>
