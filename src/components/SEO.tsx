@@ -6,7 +6,7 @@ type SEOProps = {
   path: string
 }
 
-const siteUrl = 'https://yourdomain.com'
+const siteUrl = 'https://thedictation.com'
 
 export function SEO({ title, description, path }: SEOProps) {
   useEffect(() => {

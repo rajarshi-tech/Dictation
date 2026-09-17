@@ -4,8 +4,8 @@ import { SEO } from '../components/SEO'
 
 export function Home() {
   return <>
-    <SEO title="Dictation | Local text-to-speech practice" description="A focused, private dictation workspace using your browser's native speech voices." path="/" />
-    <JsonLd data={{ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Dictation', applicationCategory: 'EducationalApplication', operatingSystem: 'Any', url: 'https://yourdomain.com/', description: 'A local browser-based dictation and text-to-speech practice tool.' }} />
+    <SEO title="The Dictation — Text-to-Speech Player for Dictation & Shorthand Practice" description="Paste your text, customize playback speed, and practice dictation locally in your browser. 100% private audio player for typing, shorthand, and language practice." path="/" />
+    <JsonLd data={{ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'The Dictation', applicationCategory: 'EducationalApplication', operatingSystem: 'Any', url: 'https://thedictation.com/', description: 'Paste your text, customize playback speed, and practice dictation locally in your browser.' }} />
     <App />
   </>
 }
